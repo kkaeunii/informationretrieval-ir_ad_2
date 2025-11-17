@@ -14,5 +14,5 @@
 - stop_elasticsearch.sh를 통해 종료
 
 2. OpenAI API를 사용하기 위해서는 API 키가 필요
--.env.example 확인
+- .env.example 확인
 
