@@ -493,4 +493,4 @@ def eval_rag(eval_filename, output_filename):
             idx += 1
 
 
-eval_rag("./data/eval.jsonl", "sample_submission_hybrid.csv")
+eval_rag("./data/eval.jsonl", "sample_submission_rrf.csv")
