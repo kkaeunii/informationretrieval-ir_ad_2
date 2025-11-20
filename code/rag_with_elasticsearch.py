@@ -111,21 +111,21 @@ def hybrid_retrieve(query_str, size, alpha=0.5): # 하이브리드 함수
         if not hits:
             return
         # 점수 정규화
-        max_score = max(h["_score"] for h in hits) or 1.
+        max_score = max(h["_score"] for h in hits) or 1.0
         for h in hits:
             src = h.get("_source", {})
             docid = src.get("docid")
             if docid is None:
                 # docid 없으면 스킵
                 continue
-            norm_score = (h["_score"] / max_score) + weight
+            norm_score = (h["_score"] / max_score) * weight
             if docid not in combined:
                 combined[docid] = {
                     "_source": src,
                     "_score": 0.0,
                 }
             combined[docid]["_score"] += norm_score
-            
+    
     # sparse / dense 각각 반영
     normalized_and_add(sparse, alpha)
     normalized_and_add(dense, 1 - alpha)
@@ -141,6 +141,59 @@ def hybrid_retrieve(query_str, size, alpha=0.5): # 하이브리드 함수
     )[:size]
     
     # sparse_retrieve와 비슷한 형태로 반환
+    return {"hits": {"hits": merged_hits}}
+       
+def hybrid_rrf(query_str, size, k=60, w_sparse=1.0, w_dense=1.0):
+    """
+    RRF(Reciprocal Rank Fusion) 기반 하이브리드 검색.
+    - 각 retriever(sparse, dense)의 '순위(Rank)'만 사용해서 점수를 만듦.
+    - RRF 점수 : sum_i [w_i * 1 / (k + rank_i)]
+      * rank_i : 해당 retriever에서의 1-based 순위(1,2,3,...)
+      * k : 점수 감소 속도 조절용 상수 (보통 50~60 정도에서 시작)
+    - w_parse, w_dense : 각 랭킹의 전역 가중치
+    """
+    # 각각 검색
+    sparse = sparse_retrieve(query_str, size)
+    dense = dense_retrieve(query_str, size)
+    
+    combined = {}
+    
+    def add_rrf(results, weight):
+        hits = results.get("hits", {}).get("hits", [])
+        if not hits or weight == 0.0:
+            return
+        
+        # Elasticsearch는 기본적으로 score 기준 내림차순으로 정렬해서 hits를 줌
+        # -> enumerate 순서가 곧 rank(1, 2, 3, ...)이 됨
+        for rank, h in enumerate(hits, start=1):
+            src = h.get("_source", {})
+            docid = src.get("docid")
+            if docid is None:
+                continue
+            
+            rrf_score = weight * (1.0 / (k + rank))
+            
+            if docid not in combined:
+                combined[docid] = {
+                    "_source": src,
+                    "_score": 0.0,
+                }
+            combined[docid]["_score"] += rrf_score
+            
+    # sparse / dense 랭킹을 RRF 방식으로 합치기
+    add_rrf(sparse, w_sparse)
+    add_rrf(dense, w_dense)
+    
+    # 점수 순으로 정렬 후 상위 size개 선택
+    merged_hits = sorted(
+        [
+            {"_source": v["_source"], "_score": v["_score"]}
+            for v in combined.values()
+        ],
+        key=lambda x: x["_score"],
+        reverse=True,
+    )[:size]
+    
     return {"hits": {"hits": merged_hits}}
 
 # -------------------------------
@@ -383,7 +436,7 @@ def answer_question(messages):
         standalone_query = function_args.get("standalone_query")
         
         # hybrid_retrieve 사용
-        search_result = hybrid_retrieve(standalone_query, 3, alpha=0.5)
+        search_result = hybrid_rrf(standalone_query, 3, k=60, w_sparse=1.0, w_dense=1.0)
         # search_result = sparse_retrieve(standalone_query, 3)
         response["standalone_query"] = standalone_query
 
