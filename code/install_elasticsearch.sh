@@ -2,7 +2,7 @@
 set -e
 
 ELASTIC_VERSION="8.8.0"
-BASE_DIR="/root/informationretrieval-ir_ad_2"
+BASE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 ES_DIR="${BASE_DIR}/elasticsearch-${ELASTIC_VERSION}"
 ES_TAR="elasticsearch-${ELASTIC_VERSION}-linux-x86_64.tar.gz"
 ES_USER="elastic"
