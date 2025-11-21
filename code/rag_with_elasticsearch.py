@@ -383,7 +383,7 @@ def answer_question(messages):
         standalone_query = function_args.get("standalone_query")
         
         # hybrid_retrieve 사용
-        search_result = hybrid_retrieve(standalone_query, 3, alpha=0.5)
+        search_result = hybrid_retrieve(standalone_query, 3, alpha=0.7) # 디폴트 값 0.5 / 0.7이 best
         # search_result = sparse_retrieve(standalone_query, 3)
         response["standalone_query"] = standalone_query
 
@@ -440,4 +440,4 @@ def eval_rag(eval_filename, output_filename):
             idx += 1
 
 
-eval_rag("./data/eval.jsonl", "sample_submission_hybrid2.csv")
+eval_rag("./data/eval.jsonl", "sample_submission_hybrid_n_best.csv")
