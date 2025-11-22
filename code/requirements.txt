@@ -1,0 +1,9 @@
+elastic-transport<9
+elasticsearch==8.8.0
+huggingface-hub>=0.36.0
+langgraph>=0.1.0
+openai>=2.8.0
+python-dotenv>=1.2.1
+sentence-transformers>=5.1.2
+tokenizers>=0.22.1
+transformers>=4.57.1
